@@ -1,0 +1,12 @@
+package com.aistudio.gestbracciantiw.data.model
+
+data class WorkerYearStats(
+    val workerId: Long,
+    val name: String,
+    val surname: String,
+    val hourlyRate: Double,
+    val totalHours: Double,
+    val totalEarnings: Double,
+    val extraHourlyRate: Double = 0.0,
+    val holidayHourlyRate: Double = 0.0
+)

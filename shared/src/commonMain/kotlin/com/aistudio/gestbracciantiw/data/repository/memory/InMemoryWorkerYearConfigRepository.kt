@@ -3,25 +3,29 @@ package com.aistudio.gestbracciantiw.data.repository.memory
 import com.aistudio.gestbracciantiw.data.entity.Worker
 import com.aistudio.gestbracciantiw.data.entity.WorkerYearConfig
 import com.aistudio.gestbracciantiw.data.model.WorkerYearStats
+import com.aistudio.gestbracciantiw.data.repository.WorkerRepository
 import com.aistudio.gestbracciantiw.data.repository.WorkerYearConfigRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
-class InMemoryWorkerYearConfigRepository : WorkerYearConfigRepository {
+class InMemoryWorkerYearConfigRepository(
+    private var workerRepository: WorkerRepository? = null
+) : WorkerYearConfigRepository {
 
     private val configsState = MutableStateFlow<List<WorkerYearConfig>>(emptyList())
-    private val workersState = MutableStateFlow<List<Worker>>(emptyList())
 
-    fun setWorkers(workers: List<Worker>) {
-        workersState.value = workers
+    fun setWorkerRepository(repository: WorkerRepository) {
+        this.workerRepository = repository
     }
 
     override fun getWorkersForYear(yearId: Int): Flow<List<Worker>> {
-        return configsState.map { configs ->
+        val repo = workerRepository ?: return flowOf(emptyList())
+        return combine(configsState, repo.allWorkers) { configs, allWorkers ->
             val workerIds = configs.filter { it.harvestYearId == yearId }.map { it.workerId }.toSet()
-            workersState.value.filter { it.id in workerIds }
+            allWorkers.filter { it.id in workerIds }
         }
     }
 
@@ -39,9 +43,10 @@ class InMemoryWorkerYearConfigRepository : WorkerYearConfigRepository {
     }
 
     override fun getWorkerStatsForYear(yearId: Int): Flow<List<WorkerYearStats>> {
-        return configsState.map { configs ->
+        val repo = workerRepository ?: return flowOf(emptyList())
+        return combine(configsState, repo.allWorkers) { configs, allWorkers ->
             configs.filter { it.harvestYearId == yearId }.mapNotNull { conf ->
-                val worker = workersState.value.firstOrNull { it.id == conf.workerId } ?: return@mapNotNull null
+                val worker = allWorkers.firstOrNull { it.id == conf.workerId } ?: return@mapNotNull null
                 WorkerYearStats(
                     workerId = worker.id,
                     name = worker.name,
